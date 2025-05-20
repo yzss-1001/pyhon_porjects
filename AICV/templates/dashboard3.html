@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能安防监控系统 | SecureVision Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2A5CAA;
+            --secondary-color: #3AB0FF;
+            --success-color: #30C172;
+            --danger-color: #FF4D4D;
+            --dark-color: #1A2330;
+            --light-color: #F5F7FA;
+            --transition-speed: 0.3s;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--dark-color);
+            color: var(--light-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .dashboard-container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .system-header {
+            background: linear-gradient(135deg, var(--primary-color), #1E3A5F);
+            padding: 0.5rem;
+            border-radius: 16px;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .system-header::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            right: -30%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(rgba(255,255,255,0.1) 10%, transparent 60%);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            padding: 0.5rem;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            transition: transform var(--transition-speed) ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .camera-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .camera-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+        }
+
+        .camera-header {
+            padding: 1.2rem;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .camera-title {
+            font-weight: 600;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            position: relative;
+        }
+
+        .online {
+            background: var(--success-color);
+            box-shadow: 0 0 12px rgba(46, 204, 113, 0.3);
+            animation: pulse 1.5s infinite;
+        }
+
+        .offline {
+            background: var(--danger-color);
+            opacity: 0.7;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.3); }
+            70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            background: #000;
+        }
+
+        .video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .object-list {
+            padding: 1rem;
+            background: rgba(0,0,0,0.3);
+            margin: 0;
+            font-size: 1.2em;
+            color: var(--secondary-color);
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .object-tag {
+            background: rgba(58, 176, 255, 0.15);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--secondary-color);
+            font-size: 0.85em;
+        }
+
+        .performance-badge {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .system-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin: 8px 0;
+            color: var(--secondary-color);
+        }
+
+        .metric-label {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: var(--danger-color);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            animation: alert-pulse 1s infinite;
+        }
+
+        @keyframes alert-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .camera-card.phone-alert {
+            animation: phone-alert 1s infinite;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes phone-alert {
+            0% { border-color: rgba(255,77,77,0); }
+            50% { border-color: var(--danger-color); }
+            100% { border-color: rgba(255,77,77,0); }
+        }
+
+        .phone-alert::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 3px solid var(--danger-color);
+            border-radius: 16px;
+            animation: phone-glow 1.5s infinite;
+            z-index: 1;
+        }
+
+        @keyframes phone-glow {
+            0% { opacity: 0; box-shadow: 0 0 10px rgba(255,77,77,0); }
+            50% { opacity: 1; box-shadow: 0 0 20px rgba(255,77,77,0.5); }
+            100% { opacity: 0; box-shadow: 0 0 10px rgba(255,77,77,0); }
+        }
+
+        .phone-alert .video-container::after {
+            content: "目标检测告警";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,77,77,0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            z-index: 2;
+        }
+
+        .alert-summary {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .alert-summary:hover {
+            background: rgba(255, 77, 77, 0.1);
+        }
+
+        .alert-count {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin: 8px 0;
+        }
+
+        .no-alert {
+            color: var(--success-color);
+        }
+
+        .has-alert {
+            color: var(--danger-color);
+            animation: alert-pulse 1.5s infinite;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1A2330, #0E131A);
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 16px;
+            width: 80%;
+            max-width: 1200px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+        }
+
+        .close-modal {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-modal:hover {
+            color: var(--danger-color);
+        }
+
+        .alert-list {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .alert-item {
+            background: rgba(255, 77, 77, 0.1);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .system-footer {
+            margin-top: 2rem;
+        }
+
+        .resource-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .resource-label {
+            width: 60px;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .resource-bar {
+            flex: 1;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .resource-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }
+
+        .no-alert {
+            text-align: center;
+            padding: 2rem;
+            color: var(--success-color);
+        }
+
+        .no-alert i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .alert-source, .alert-time, .alert-objects {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+            :root {
+        --primary-color: #2A5CAA;       /* 保持主蓝 */
+        --secondary-color: #3AB0FF;     /* 科技蓝 */
+        --success-color: #30C172;       /* 健康绿 */
+        --danger-color: #FF4D4D;        /* 警示红 */
+        --background-color: #F8FAFC;    /* 浅灰背景 */
+        --surface-color: #FFFFFF;       /* 卡片背景 */
+        --text-primary: #1E293B;        /* 深灰文字 */
+        --text-secondary: #64748B;      /* 中灰文字 */
+        --border-color: #E2E8F0;        /* 边框颜色 */
+        --transition-speed: 0.3s;
+    }
+
+    body {
+        background: var(--background-color);
+        color: var(--text-primary);
+    }
+
+    .system-header {
+        background: var(--surface-color);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        border: 1px solid var(--border-color);
+    }
+
+    .stat-card {
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .camera-card {
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+
+    .camera-header {
+        background: var(--background-color);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .metric-label {
+        color: var(--text-secondary);
+    }
+
+    .status-indicator.online {
+        box-shadow: 0 0 8px rgba(46, 204, 113, 0.2);
+    }
+
+    .object-list {
+        background: var(--background-color);
+        color: var(--text-primary);
+    }
+
+    .object-tag {
+        background: rgba(58, 176, 255, 0.08);
+        border: 1px solid rgba(58, 176, 255, 0.2);
+        color: var(--primary-color);
+    }
+
+    .performance-badge {
+        background: rgba(255,255,255,0.9);
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+    }
+
+    .system-title {
+        color: var(--primary-color);
+    }
+
+    .alert-badge {
+        background: var(--danger-color);
+        color: white;
+    }
+
+    .modal-content {
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+    }
+
+    .resource-bar {
+        background: var(--border-color);
+    }
+
+    /* 新增工业风格元素 */
+    .camera-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        opacity: 0.8;
+    }
+
+    .stat-card {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::after {
+        content: "";
+        position: absolute;
+        top: -20px;
+        right: -20px;
+        width: 60px;
+        height: 60px;
+        background: rgba(42, 92, 170, 0.05);
+        transform: rotate(45deg);
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        color: var(--primary-color);
+        position: relative;
+        z-index: 1;
+    }
+
+    .camera-title {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .video-container {
+        border-bottom: 1px solid var(--border-color);
+    }
+
+
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="system-header">
+            <div class="system-title">
+                <i class="fas fa-shield-alt"></i>
+                Ai方摔倒检测监控系统
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="metric-label">
+                        <i class="fas fa-microchip"></i>
+                        计算设备
+                    </div>
+                    <div class="metric-value">{{ device|upper }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="metric-label">
+                        <i class="fas fa-video"></i>
+                        在线摄像头
+                    </div>
+                    <div class="metric-value" id="online-cams">
+                        <span id="online-count">0</span>/{{ cameras|length }}
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="metric-label">
+                        <i class="fas fa-clock"></i>
+                        系统时间
+                    </div>
+                    <div class="metric-value" id="live-clock">{{ server_time }}</div>
+                </div>
+                <div class="stat-card alert-summary" id="alert-summary">
+                    <div class="metric-label">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        目标检测警告
+                    </div>
+                    <div class="alert-count no-alert" id="alert-count">0</div>
+                    <div class="metric-label">
+                        <span id="alert-status">系统正常</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="camera-grid">
+            {% for camera in cameras %}
+            <div class="camera-card" id="cam-{{ camera.id }}">
+                <div class="camera-header">
+                    <a href="/camera_detail/{{ camera.id }}" style="text-decoration: none; color: inherit;">
+                        <div class="camera-title">
+                            <span class="status-indicator {% if camera.status == '运行中' %}online{% else %}offline{% endif %}"></span>
+                            {{ camera.name }}
+                        </div>
+                    </a>
+                    <div class="camera-meta">
+                        <span class="fps-badge">{{ camera.status }}</span>
+                    </div>
+                </div>
+
+                <div class="video-container">
+                    <img class="video-feed" src="{{ url_for('video_feed', cam_id=camera.id) }}">
+                    <div class="performance-badge">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span id="fps-{{ camera.id }}">-</span> FPS
+                    </div>
+                </div>
+
+                <div class="object-list" id="objects-{{ camera.id }}">
+                    <div class="loading-overlay">
+                        <div class="loading-spinner"></div>
+                        <span>连接中...</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="system-footer">
+            <div class="stat-card">
+                <div class="metric-label">
+                    <i class="fas fa-database"></i>
+                    系统资源
+                </div>
+                <div class="resource-grid">
+                    <div class="resource-item">
+                        <span class="resource-label">GPU:</span>
+                        <div class="resource-bar">
+                            <div class="resource-fill" id="cpu-usage"></div>
+                        </div>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">内存:</span>
+                        <div class="resource-bar">
+                            <div class="resource-fill" id="mem-usage"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="alert-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="modal-title">目标检测分析报告</span>
+                </div>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="alert-list" id="alert-details">
+                <!-- 动态内容将在这里填充 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAlerts = [];
+
+               function updateDashboard() {
+                   fetch('/api/status')
+                       .then(response => response.json())
+                       .then(data => {
+                           data.cameras.forEach(camera => {
+                               const camElement = document.getElementById(`cam-${camera.id}`);
+                               const statusIndicator = camElement.querySelector('.status-indicator');
+                               const objectList = document.getElementById(`objects-${camera.id}`);
+                               const fpsElement = document.getElementById(`fps-${camera.id}`);
+                               window.aim_objects = [];
+                               const hasPhone = camera.objects.some(obj =>
+                                   obj.toLowerCase().includes('cell phone'));
+                               const hasBottle = camera.objects.some(obj =>
+                                   obj.toLowerCase().includes('bottle'));
+                               const hasCup = camera.objects.some(obj =>
+                                   obj.toLowerCase().includes('cup'));
+
+                               statusIndicator.className = `status-indicator ${camera.status === '运行中' ? 'online' : 'offline'}`;
+
+                               if (hasPhone || hasBottle || hasCup) {
+                               if(hasPhone){
+                               camElement.classList.add('phone-alert');
+                               aim_objects.push('手机、');
+                               if (!currentAlerts.some(a => a.cameraId === camera.id)) {
+                                   currentAlerts.push({
+                                       cameraId: camera.id,
+                                       cameraName: camera.name,
+                                       timestamp: new Date().toLocaleTimeString(),
+                                       objects: camera.objects
+                                   });
+                               }
+                               }
+                               if(hasBottle){
+                               camElement.classList.add('phone-alert');
+                               aim_objects.push('瓶子、');
+                               if (!currentAlerts.some(a => a.cameraId === camera.id)) {
+                                   currentAlerts.push({
+                                       cameraId: camera.id,
+                                       cameraName: camera.name,
+                                       timestamp: new Date().toLocaleTimeString(),
+                                       objects: camera.objects
+                                   });
+                               }
+                               }
+                               if(hasCup){
+                               camElement.classList.add('phone-alert');
+                               aim_objects.push('杯子、');
+                               if (!currentAlerts.some(a => a.cameraId === camera.id)) {
+                                   currentAlerts.push({
+                                       cameraId: camera.id,
+                                       cameraName: camera.name,
+                                       timestamp: new Date().toLocaleTimeString(),
+                                       objects: camera.objects
+                                   });
+                               }
+                               }
+                               } else {
+                                   currentAlerts = currentAlerts.filter(a => a.cameraId !== camera.id);
+                                   camElement.classList.remove('phone-alert');
+                                   camElement.classList.remove('phone-alert');
+                                   camElement.classList.remove('phone-alert');
+                               }
+
+                               objectList.innerHTML = camera.objects.length > 0
+                                   ? camera.objects.map(obj => `<div class="object-tag">${obj}</div>`).join('')
+                                   : '<div class="object-tag">无检测目标</div>';
+
+                               fpsElement.textContent = camera.fps || '-';
+                           });
+
+                           const onlineCount = data.cameras.filter(c => c.status === '运行中').length;
+                           document.getElementById('online-count').textContent = onlineCount;
+
+                           document.getElementById('cpu-usage').style.width = `${data.system.cpu}%`;
+                           document.getElementById('mem-usage').style.width = `${data.system.memory}%`;
+
+                           updateAlertSummary();
+                       });
+               }
+
+               function updateAlertSummary() {
+                   const alertCountElement = document.getElementById('alert-count');
+                   const alertStatusElement = document.getElementById('alert-status');
+                   const summaryCard = document.getElementById('alert-summary');
+
+                   if (currentAlerts.length > 0) {
+                       var aim_text = '检测到目标'.replace("目标",aim_objects);
+                       alertCountElement.textContent = currentAlerts.length;
+                       alertCountElement.className = 'alert-count has-alert';
+                       alertStatusElement.textContent = aim_text;
+                       alertStatusElement.style.color = 'var(--danger-color)';
+                       summaryCard.style.borderColor = 'rgba(255, 77, 77, 0.3)';
+                   } else {
+                       alertCountElement.textContent = '0';
+                       alertCountElement.className = 'alert-count no-alert';
+                       alertStatusElement.textContent = '系统正常';
+                       alertStatusElement.style.color = 'var(--success-color)';
+                       summaryCard.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                   }
+               }
+
+               async function showAlertDetails() {
+                   const modal = document.getElementById('alert-modal');
+                   const alertDetails = document.getElementById('alert-details');
+
+                   alertDetails.innerHTML = `
+                       <div class="alert-list-header">
+                           <h3><i class="fas fa-exclamation-circle"></i> 当前活动警报</h3>
+                       </div>`;
+
+                   if (currentAlerts.length === 0) {
+                       alertDetails.innerHTML += `
+                           <div class="no-alert">
+                               <i class="fas fa-check-circle"></i>
+                               <p>当前没有活动警报</p>
+                           </div>`;
+                   } else {
+                       currentAlerts.forEach(alert => {
+                           const alertItem = document.createElement('div');
+                           alertItem.className = 'alert-item';
+                           alertItem.innerHTML = `
+                               <div class="alert-source">
+                                   <i class="fas fa-video"></i>
+                                   摄像头: ${alert.cameraName} (ID: ${alert.cameraId})
+                               </div>
+                               <div class="alert-time">
+                                   <i class="fas fa-clock"></i>
+                                   首次检测时间: ${alert.timestamp}
+                               </div>
+                               <div class="alert-objects">
+                                   <i class="fas fa-tag"></i>
+                                   检测目标: ${alert.objects.join(', ')}
+                               </div>
+                           `;
+                           alertDetails.appendChild(alertItem);
+                       });
+                   }
+
+                   modal.style.display = 'block';
+               }
+
+               function closeModal() {
+                   document.getElementById('alert-modal').style.display = 'none';
+               }
+
+               function updateClock() {
+                   document.getElementById('live-clock').textContent =
+                       new Date().toLocaleString('zh-CN', {
+                           year: 'numeric',
+                           month: '2-digit',
+                           day: '2-digit',
+                           hour: '2-digit',
+                           minute: '2-digit',
+                           second: '2-digit'
+                       });
+               }
+
+               document.getElementById('alert-summary').addEventListener('click', showAlertDetails);
+               document.querySelector('.close-modal').addEventListener('click', closeModal);
+               window.addEventListener('click', (event) => {
+                   if (event.target === document.getElementById('alert-modal')) {
+                       closeModal();
+                   }
+               });
+
+               setInterval(updateDashboard, 2000);
+               setInterval(updateClock, 1000);
+               updateDashboard();
+               updateClock();
+    </script>
+
+</body>
+</html>

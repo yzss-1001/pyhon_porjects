@@ -1,0 +1,6 @@
+train: D:\python\AICV\model\train\data\train\images
+val: D:\python\\AICV\model\train\data\val\images
+#nc为类的个数
+nc: 1
+#类名
+names: ['football']
